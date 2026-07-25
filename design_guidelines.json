@@ -1,0 +1,140 @@
+{
+  "theme_strategy": "Light theme primary for optimal daytime readability in a shop environment. High contrast and clean numbers.",
+  "typography": {
+    "headings": {
+      "family": "Work Sans, sans-serif",
+      "weights": ["500", "600", "700"],
+      "usage": "Dashboard titles, KPI numbers, Chart titles",
+      "install_import": "@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@500;600;700&display=swap');"
+    },
+    "body": {
+      "family": "IBM Plex Sans, sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Table data, item names, rate inputs, labels",
+      "install_import": "@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');"
+    },
+    "rules": [
+      "No generic sans (Inter, Roboto) for headings.",
+      "Numbers in KPI cards MUST use tight letter spacing: tracking-tight.",
+      "Table headers MUST be uppercase + tiny + wide spacing (tracking-[0.15em]).",
+      "Values representing currency must use a monospaced variant or tabular numerals if possible."
+    ]
+  },
+  "colors": {
+    "archetype": "Organic & Earthy / Soft Utility Hybrid",
+    "palette": {
+      "light": {
+        "background": "#F4F5F7",
+        "surface": "#FFFFFF",
+        "primary": "#0D5C46",
+        "primary_foreground": "#FFFFFF",
+        "accent_money": "#10B981",
+        "accent_warning": "#F59E0B",
+        "text_primary": "#111827",
+        "text_secondary": "#4B5563",
+        "border": "#E5E7EB"
+      },
+      "dark": {
+        "background": "#0F1115",
+        "surface": "#1A1D24",
+        "primary": "#2E7D52",
+        "primary_foreground": "#FFFFFF",
+        "accent_money": "#34D399",
+        "text_primary": "#F9FAFB",
+        "text_secondary": "#9CA3AF",
+        "border": "#2D333B"
+      }
+    },
+    "rules": [
+      "Use Accent Money (#10B981) specifically for positive revenue trends and total rupees.",
+      "Tint neutral greys with a tiny bit of warmth.",
+      "Ensure text meets APCA/WCAG AA contrast ratios.",
+      "DO NOT use complete transparent background in header, overlays, any surface that has content under it."
+    ]
+  },
+  "visual_enhancers": {
+    "surface_strategy": "Neumorphism (Tactile Variant)",
+    "rules": [
+      "Cards: Flat solid backgrounds with subtle 1px border (border-black/5) and soft ambient shadow (shadow-sm).",
+      "No glassmorphism for data tables or forms to maintain utmost clarity.",
+      "Headers: Solid Background with a hard bottom border."
+    ]
+  },
+  "components": {
+    "required": ["Card", "Table", "Input", "Select", "Tabs", "Dialog", "Sonner", "Button"],
+    "rules": [
+      "Tables: Dense padding (p-2 or p-3) for rows to allow high information density. Use sticky headers.",
+      "Inputs (Rate field): Right-aligned text for numbers. Hide HTML spin buttons. On focus, add ring-2 ring-primary/50.",
+      "KPI Cards: Include an icon on the top right (muted), large number in the middle, and an optional trend at the bottom.",
+      "PDF Upload: Drag-and-drop zone with clear dotted border and Phosphor FilePdf icon."
+    ]
+  },
+  "grids_layouts": {
+    "strategy": "High Density Grid (For Dashboards / Analytics)",
+    "bento_rules": [
+      "Base Grid: grid-cols-1 md:grid-cols-3 xl:grid-cols-4. Tight gaps (gap-4 or gap-6).",
+      "Summary KPIs: col-span-1 (Total Revenue, Total Pcs, Active Days, Top Item).",
+      "Primary Data (Daily Sales Trend Chart): col-span-2 xl:col-span-3.",
+      "Secondary Data (Top Items Bar Chart): col-span-1 xl:col-span-1.",
+      "Item-wise Monthly Summary Table: col-span-full.",
+      "Ensure all cards stretch to fill height using h-full."
+    ]
+  },
+  "motion": {
+    "rules": [
+      "Hover states on table rows: background highlight (bg-black/5 or bg-white/5).",
+      "Focus states: form inputs must have clear focus rings.",
+      "Charts: Smooth drawing animation on load (Recharts default).",
+      "Do not apply `transition: all`. Use specific transitions for opacity, colors, and transform."
+    ]
+  },
+  "accessibility": {
+    "rules": [
+      "All interactive elements MUST include data-testid (e.g., data-testid='upload-pdf-btn').",
+      "Currency values must have the ₹ symbol explicitly prefixed.",
+      "Support prefers-reduced-motion for chart animations.",
+      "Ensure all form inputs (Rates) have aria-labels."
+    ]
+  },
+  "media": {
+    "icons": {
+      "library": "@phosphor-icons/react",
+      "style": "Regular or Duotone weight for business dashboard clarity.",
+      "install_command": "npm install @phosphor-icons/react"
+    }
+  },
+  "image_urls": [
+    {
+      "url": "https://images.unsplash.com/photo-1524081081171-7960da1de373?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjBzbWFsbCUyMGJ1c2luZXNzJTIwb3duZXJ8ZW58MHx8fHwxNzg0OTY5NDIyfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Indian small business owner - Use as an optional avatar placeholder or welcome screen background if an empty state is needed.",
+      "category": "Avatar / Welcome Empty State"
+    }
+  ],
+  "3d_libraries": {
+    "decision": "None required. Use standard 2D Recharts for the Daily Sales line chart and Top Items bar charts."
+  },
+  "instructions_to_main_agent": {
+    "phase_1_setup": "Install Recharts, Phosphor Icons, and Sonner. Set up UI skeleton with a Month Selector in the Top Header.",
+    "phase_2_upload_parsing": "Implement the PDF Upload logic. Since we don't have a real backend parser, mock the parsing of 'Apple Notes PDF format' to generate date-wise entries (e.g. 1-6, Watchstar, 5 pcs).",
+    "phase_3_entry_manager": "Create an 'Entry Manager' section or Data Table view showing all parsed daily entries. Crucial: Add an editable 'Rate' input column per row. When updated, it must auto-calculate the row total (Rate * Pcs) and update global dashboard totals immediately.",
+    "phase_4_dashboard_kpis": "Build the 4-card KPI strip: Monthly Total Revenue (₹), Total Pcs, Active Days, Top Item (by pcs or revenue).",
+    "phase_5_charts": "Implement Daily Sales Trend (Line Chart: X=Date, Y=Revenue) and Top Items (Bar Chart: X=Item Name, Y=Revenue/Pcs).",
+    "phase_6_summary_table": "Add an 'Item-wise Monthly Summary' table showing Item Name | Total Pcs | Total Revenue.",
+    "note": "Keep item names as-is (no normalization). Implement multi-month state support so the user can switch between months via the header."
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use 'sonner' for toasts. Sonner component are located in /app/src/components/ui/sonner.tsx.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute to facilitate robust automated testing."
+  ]
+}
