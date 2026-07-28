@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CurrencyInr, Package, Calendar, Trophy, ChartLineUp, ChartBar, Storefront, TrashSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { CurrencyInr, Package, Calendar, Trophy, ChartLineUp, ChartBar, Storefront, TrashSimple, WhatsappLogo, Lock, LockOpen, ShieldCheck } from "@phosphor-icons/react";
 import { KpiCard } from "@/components/KpiCard";
 import { PdfUpload } from "@/components/PdfUpload";
 import { EntriesTable } from "@/components/EntriesTable";
@@ -36,6 +36,17 @@ export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [itemRates, setItemRates] = useState({});
   const [loading, setLoading] = useState(false);
+  const [unlockedPast, setUnlockedPast] = useState(false);
+
+  // Latest month (newest with data) is treated as current/editable. Older months are settled/locked by default.
+  const latestMonth = useMemo(() => months[0] || null, [months]);
+  const isPastMonth = useMemo(() => Boolean(month && latestMonth && month < latestMonth), [month, latestMonth]);
+  const locked = isPastMonth && !unlockedPast;
+
+  // Reset unlock when switching months
+  useEffect(() => {
+    setUnlockedPast(false);
+  }, [month]);
 
   const refreshMonths = useCallback(async () => {
     const ms = await fetchMonths();
@@ -146,13 +157,22 @@ export default function Dashboard() {
                 setMonth(e.target.value);
                 refresh(e.target.value);
               }}
-              className="h-9 sm:h-10 rounded-full border border-neutral-300 text-sm px-3 sm:px-4 pr-8 bg-white font-medium"
+              className={`h-9 sm:h-10 rounded-full border text-sm px-3 sm:px-4 pr-8 bg-white font-medium ${isPastMonth ? "border-amber-300 text-amber-800" : "border-neutral-300"}`}
             >
               {months.length === 0 && <option value="">No data</option>}
               {months.map((m) => (
-                <option key={m} value={m}>{monthLabel(m)}</option>
+                <option key={m} value={m}>{monthLabel(m)}{months[0] !== m ? " · settled" : ""}</option>
               ))}
             </select>
+            {isPastMonth && (
+              <span
+                data-testid="settled-badge"
+                title="Settled — protected from bulk changes"
+                className="flex items-center gap-1 text-[11px] uppercase tracking-[0.15em] font-medium text-amber-800 bg-amber-100 border border-amber-200 rounded-full px-2 py-1"
+              >
+                <ShieldCheck size={12} weight="fill" /> Settled
+              </span>
+            )}
             {month && !empty && (
               <Button
                 variant="outline"
@@ -165,7 +185,7 @@ export default function Dashboard() {
                 <WhatsappLogo size={14} weight="fill" className="sm:mr-1" /> <span className="hidden sm:inline">Share month</span>
               </Button>
             )}
-            {month && !empty && (
+            {month && !empty && !locked && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" data-testid="delete-month-btn" className="rounded-full border-red-200 text-red-700 hover:bg-red-50 px-2 sm:px-3" title="Clear this month's data">
@@ -204,6 +224,47 @@ export default function Dashboard() {
           </Card>
         ) : (
           <>
+            {/* Data safety banner */}
+            {isPastMonth && (
+              <div
+                data-testid="past-month-banner"
+                className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 sm:p-4 ${
+                  locked
+                    ? "bg-amber-50 border-amber-200"
+                    : "bg-red-50 border-red-200"
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${locked ? "bg-amber-100" : "bg-red-100"}`}>
+                  {locked ? (
+                    <Lock size={20} weight="duotone" className="text-amber-700" />
+                  ) : (
+                    <LockOpen size={20} weight="duotone" className="text-red-700" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-display font-semibold ${locked ? "text-amber-900" : "text-red-900"}`}>
+                    {locked
+                      ? `${monthLabel(month)} is a settled month — juno hisab safe chhe`
+                      : `Editing enabled for ${monthLabel(month)} — changes will overwrite past records`}
+                  </p>
+                  <p className="text-xs text-neutral-600 mt-0.5">
+                    {locked
+                      ? "Rates, entries, and delete are locked to protect old accounts. New rates you set in the current month never touch this data."
+                      : "Be careful. Only edit if you truly need to correct past records."}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="toggle-unlock-past"
+                  onClick={() => setUnlockedPast((v) => !v)}
+                  className={`rounded-full ${locked ? "border-amber-300 text-amber-800 hover:bg-amber-100" : "border-red-300 text-red-800 hover:bg-red-100"}`}
+                >
+                  {locked ? (<><LockOpen size={14} className="mr-1" /> Unlock to edit</>) : (<><Lock size={14} className="mr-1" /> Lock again</>)}
+                </Button>
+              </div>
+            )}
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <KpiCard
@@ -274,7 +335,7 @@ export default function Dashboard() {
             </div>
 
             {/* Entries table */}
-            <EntriesTable entries={entries} month={month} itemRates={itemRates} summaryItems={items} onChange={onDataChange} />
+            <EntriesTable entries={entries} month={month} itemRates={itemRates} summaryItems={items} locked={locked} onChange={onDataChange} />
 
             {/* Keyword search */}
             <KeywordSearch items={items} />

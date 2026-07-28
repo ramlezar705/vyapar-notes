@@ -33,7 +33,7 @@ const shareOnWhatsapp = (text) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-const RateInput = ({ value, onCommit, testid }) => {
+const RateInput = ({ value, onCommit, testid, disabled = false }) => {
   const [v, setV] = useState(value ?? 0);
   return (
     <Input
@@ -41,6 +41,7 @@ const RateInput = ({ value, onCommit, testid }) => {
       inputMode="decimal"
       step="0.01"
       value={v}
+      disabled={disabled}
       data-testid={testid}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => {
@@ -50,13 +51,13 @@ const RateInput = ({ value, onCommit, testid }) => {
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
       }}
-      className="h-9 sm:h-8 w-[68px] sm:w-24 text-right font-mono-num text-sm px-2 sm:px-3"
+      className={`h-9 sm:h-8 w-[68px] sm:w-24 text-right font-mono-num text-sm px-2 sm:px-3 ${disabled ? "bg-neutral-50 text-neutral-500 cursor-not-allowed" : ""}`}
       aria-label="Rate per piece"
     />
   );
 };
 
-export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = [], onChange }) => {
+export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = [], locked = false, onChange }) => {
   const [openDates, setOpenDates] = useState({});
   const [newEntry, setNewEntry] = useState({}); // per-date draft
 
@@ -117,7 +118,9 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
           <p className="text-xs text-neutral-500 mt-0.5">Add rate for each row — daily and monthly totals auto-calculate.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <RatesManager items={summaryItems} itemRates={itemRates} month={month} onChange={onChange} />
+          {!locked && (
+            <RatesManager items={summaryItems} itemRates={itemRates} month={month} onChange={onChange} />
+          )}
         </div>
       </div>
 
@@ -181,6 +184,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                                 value={r.rate}
                                 onCommit={(v) => updateRate(r.id, v)}
                                 testid={`rate-input-${r.id}`}
+                                disabled={locked}
                               />
                             </div>
                           </td>
@@ -191,7 +195,8 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                             <button
                               data-testid={`delete-entry-${r.id}`}
                               onClick={() => removeEntry(r.id)}
-                              className="text-neutral-400 hover:text-red-600 p-1"
+                              disabled={locked}
+                              className={`p-1 ${locked ? "text-neutral-300 cursor-not-allowed" : "text-neutral-400 hover:text-red-600"}`}
                               aria-label="Delete entry"
                             >
                               <Trash size={14} />
@@ -199,6 +204,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                           </td>
                         </tr>
                       ))}
+                      {!locked && (
                       <tr className="border-t border-neutral-100 bg-neutral-50/50">
                         <td className="py-2 pr-2">
                           <Input
@@ -258,6 +264,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                           </button>
                         </td>
                       </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
