@@ -42,7 +42,9 @@ export const RatesManager = ({ items, itemRates, month, onChange }) => {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return items;
-    return items.filter((it) => it.item.toLowerCase().includes(needle));
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`, "i");
+    return items.filter((it) => re.test(it.item));
   }, [items, q]);
 
   const changedCount = useMemo(() => {

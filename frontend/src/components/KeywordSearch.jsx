@@ -16,7 +16,11 @@ export const KeywordSearch = ({ items }) => {
   const { matched, totalPcs, totalRev } = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return { matched: [], totalPcs: 0, totalRev: 0 };
-    const m = items.filter((it) => it.item.toLowerCase().includes(needle));
+    // Escape regex special chars, then match as a WHOLE WORD (word boundary), case-insensitive.
+    // So "aj" matches "Shivark aj" but NOT "Tifa raju"; "aand" matches "Best aand" etc.
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`, "i");
+    const m = items.filter((it) => re.test(it.item));
     const totalPcs = m.reduce((a, x) => a + (x.pcs || 0), 0);
     const totalRev = m.reduce((a, x) => a + (x.revenue || 0), 0);
     return { matched: m, totalPcs, totalRev };

@@ -1,10 +1,38 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CaretDown, CaretRight, Trash, Plus } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Trash, Plus, WhatsappLogo } from "@phosphor-icons/react";
 import { formatINR, formatNumber, patchEntry, deleteEntry, createEntry } from "@/lib/api";
 import { toast } from "sonner";
 import { RatesManager } from "@/components/RatesManager";
+
+const buildWhatsappText = (date, rows) => {
+  const totalPcs = rows.reduce((a, r) => a + (r.pcs || 0), 0);
+  const totalRev = rows.reduce((a, r) => a + (r.pcs || 0) * (r.rate || 0), 0);
+  const lines = [];
+  lines.push(`*Daily Report* ${date}`);
+  lines.push("");
+  for (const r of rows) {
+    const rev = (r.pcs || 0) * (r.rate || 0);
+    if (r.rate && r.rate > 0) {
+      lines.push(`• ${r.item}: ${formatNumber(r.pcs)} × ₹${r.rate} = ${formatINR(rev)}`);
+    } else {
+      lines.push(`• ${r.item}: ${formatNumber(r.pcs)} pcs`);
+    }
+  }
+  lines.push("");
+  lines.push(`*Total pcs:* ${formatNumber(totalPcs)}`);
+  if (totalRev > 0) lines.push(`*Total revenue:* ${formatINR(totalRev)}`);
+  lines.push("");
+  lines.push("_via Vyapar.Notes_");
+  return lines.join("\n");
+};
+
+const shareOnWhatsapp = (text) => {
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
 const RateInput = ({ value, onCommit, testid }) => {
   const [v, setV] = useState(value ?? 0);
   return (
@@ -103,21 +131,33 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
           const dayRev = rows.reduce((a, r) => a + (r.pcs || 0) * (r.rate || 0), 0);
           return (
             <div key={date} className="border-b border-neutral-100 last:border-b-0">
-              <button
-                data-testid={`day-toggle-${date}`}
-                onClick={() => setOpenDates({ ...openDates, [date]: !open })}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 text-left"
-              >
-                <div className="flex items-center gap-2">
+              <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50">
+                <button
+                  data-testid={`day-toggle-${date}`}
+                  onClick={() => setOpenDates({ ...openDates, [date]: !open })}
+                  className="flex items-center gap-2 flex-1 text-left"
+                >
                   {open ? <CaretDown size={16} /> : <CaretRight size={16} />}
                   <span className="font-display font-semibold text-neutral-900">{date}</span>
                   <span className="text-xs text-neutral-500 ml-2">{rows.length} items</span>
-                </div>
-                <div className="flex items-center gap-6 text-sm font-mono-num">
+                </button>
+                <div className="flex items-center gap-4 text-sm font-mono-num">
                   <span className="text-neutral-600">{formatNumber(dayPcs)} pcs</span>
                   <span className="text-emerald-700 font-semibold">{formatINR(dayRev)}</span>
+                  <button
+                    data-testid={`share-day-${date}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareOnWhatsapp(buildWhatsappText(date, rows));
+                    }}
+                    title="Share on WhatsApp"
+                    className="flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-full px-2 py-1 transition-colors"
+                  >
+                    <WhatsappLogo size={18} weight="fill" />
+                    <span className="text-xs font-medium hidden sm:inline">Share</span>
+                  </button>
                 </div>
-              </button>
+              </div>
               {open && (
                 <div className="px-4 pb-4">
                   <table className="w-full text-sm">

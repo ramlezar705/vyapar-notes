@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CurrencyInr, Package, Calendar, Trophy, ChartLineUp, ChartBar, Storefront, TrashSimple } from "@phosphor-icons/react";
+import { CurrencyInr, Package, Calendar, Trophy, ChartLineUp, ChartBar, Storefront, TrashSimple, WhatsappLogo } from "@phosphor-icons/react";
 import { KpiCard } from "@/components/KpiCard";
 import { PdfUpload } from "@/components/PdfUpload";
 import { EntriesTable } from "@/components/EntriesTable";
@@ -96,6 +96,27 @@ export default function Dashboard() {
 
   const empty = !summary || summary.total_entries === 0;
 
+  const shareMonthlySummary = () => {
+    if (!summary) return;
+    const lines = [];
+    lines.push(`*Monthly Report* — ${monthLabel(month)}`);
+    lines.push("");
+    lines.push(`*Total revenue:* ${formatINR(summary.total_revenue)}`);
+    lines.push(`*Total pcs:* ${formatNumber(summary.total_pcs)}`);
+    lines.push(`*Active days:* ${summary.active_days}`);
+    if (summary.top_item_by_revenue) lines.push(`*Top item:* ${summary.top_item_by_revenue}`);
+    lines.push("");
+    lines.push("*Top 5 items by revenue:*");
+    const top = [...(summary.items || [])].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+    for (const it of top) {
+      lines.push(`• ${it.item}: ${formatNumber(it.pcs)} pcs — ${formatINR(it.revenue)}`);
+    }
+    lines.push("");
+    lines.push("_via Vyapar.Notes_");
+    const url = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const revenueByDay = summary?.daily || [];
   const items = summary?.items || [];
 
@@ -132,6 +153,17 @@ export default function Dashboard() {
                 <option key={m} value={m}>{monthLabel(m)}</option>
               ))}
             </select>
+            {month && !empty && (
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="share-month-btn"
+                onClick={shareMonthlySummary}
+                className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <WhatsappLogo size={14} weight="fill" className="mr-1" /> Share month
+              </Button>
+            )}
             {month && !empty && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
