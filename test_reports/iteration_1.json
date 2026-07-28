@@ -1,0 +1,45 @@
+{
+  "summary": "Backend endpoints all working (health, entries CRUD, bulk-rate, summary math, months, delete-month). PDF upload succeeds on backend (417 entries / 27 days parsed correctly for 2025-06, top item 'Best aand'), but ingress cuts client connection at ~60s with HTTP 502 while Gemini parse takes ~90s. Frontend fully renders: KPIs, daily line chart, top items bar chart (Pcs/Revenue toggle), month selector, entries table with 417 rows, bulk-apply widget. Rate edit updates totals (verified 2000*11=22000), bulk apply shows toast and updates revenue KPI live.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/ returns {message:'Vyapar API running'} 200",
+    "POST /api/entries creates entry with id, month auto-derived",
+    "GET /api/entries?month=YYYY-MM lists entries",
+    "PATCH /api/entries/{id} updates rate correctly",
+    "POST /api/entries/bulk-rate updates all matching item+month rows (updated:2)",
+    "GET /api/summary?month=... math verified: 10*9 + 20*9 = 270, active_days/top_item correct",
+    "GET /api/months returns distinct sorted desc",
+    "DELETE /api/month/{month} clears all entries in month (deleted:2)",
+    "PDF parse via Gemini: backend inserted 417 entries across 27 days for 2025-06, top item 'Best aand'",
+    "Frontend loads at REACT_APP_BACKEND_URL, all data-testids present",
+    "KPI cards, daily line chart, top items bar chart (by Pcs/Revenue), entries table (417 rows), item summary all render",
+    "Rate input edit: setting rate-input to 11 for 2000-pcs row updates row total to ₹22,000 and monthly KPI to ₹22,000",
+    "Bulk apply widget: selecting '7 stek banz' + rate 20 + Apply → toast 'Applied rate to 1 entries of 7 stek banz', monthly KPI jumps to ₹42,000",
+    "Month selector value=2025-06, Clear month button present"
+  ],
+  "failed": [
+    {
+      "area": "PDF upload / ingress timeout",
+      "issue": "POST /api/upload-pdf returns HTTP 502 to the client after ~60s because the Kubernetes ingress cuts the connection while Gemini parsing takes ~60-90s. Backend actually completes and inserts data (verified 417 entries), but the frontend Upload PDF button will show a network error and the user won't know the upload actually succeeded until they refresh / change month.",
+      "evidence": "curl --max-time 180 -X POST .../api/upload-pdf -F file=@/tmp/test.pdf returned HTTP:502 in 60.17s. Backend log ~90s later shows: POST /api/upload-pdf 200 OK. GET /api/months then returns ['2025-06'] with 417 entries in summary.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Charts - initial render warning",
+      "issue": "Recharts logs 8x warnings 'The width(-1) and height(-1) of chart should be greater than 0' on initial mount. Chart still renders correctly after layout settles. Cosmetic only.",
+      "evidence": "Console warnings on load; chart visible in screenshot.",
+      "priority": "LOW"
+    }
+  ],
+  "action_items": [
+    "Fix PDF upload UX to survive >60s ingress timeout: either (a) return 202 + job id and poll /api/upload-status/{id}, or (b) stream/chunk keep-alive bytes during parse, or (c) parse in background and let the UI subscribe to /api/months polling after upload starts. Currently the user experience is broken even though data ends up in DB.",
+    "(Optional) Wrap ResponsiveContainer in a min-height div or delay chart mount until layout is ready to suppress recharts width warnings."
+  ],
+  "success_rate": {"backend": "100% (7/7 endpoints functional; PDF upload succeeds server-side)", "frontend": "100% (all tested flows work)"},
+  "retest_needed": true,
+  "full_testing_deferred": true,
+  "notes": {
+    "credentials": "No auth in this app. /app/memory/test_credentials.md not required.",
+    "delete_month_ui_not_clicked": "Did not click confirm-delete-month in UI to preserve the freshly parsed 417-entry June dataset for main agent's follow-up work. Backend DELETE /api/month/{month} was verified independently on a synthetic 2025-07 dataset."
+  }
+}

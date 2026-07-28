@@ -1,0 +1,55 @@
+{
+  "summary": "Retested the async PDF upload end to end against the public URL. POST /api/upload-pdf returned a queued job immediately, polling reached done within 3 minutes, and the real PDF inserted 417 rows. Backend run completed in 138.6s with 27 days; UI run showed parsing state and success toast after 117.7s with 417 entries. Uploaded test rows were removed after each run, preserving the original 417 June entries. Rate edit, bulk apply, month selector, entries table, and chart tab were spot-checked successfully.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/upload-status/{job_id}",
+        "issue": "Gemini extraction metadata was nondeterministic for the same PDF: backend test reported 417 entries/27 days, while the UI upload reported 417 entries/26 days. Core async completion passed, but extraction accuracy should be monitored."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "PDF upload success feedback",
+        "issue": "Upload completed without 502 and showed the correct 417 entry count, but one run's toast reported 26 days instead of the previously verified 27 days.",
+        "affected_selectors": ["[data-testid='pdf-file-input']", "[data-testid='upload-pdf-btn']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Dashboard charts",
+        "issues": ["Recharts still emits transient width(-1)/height(-1) warnings during initial render; charts render afterward."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Consider validating/normalizing Gemini day coverage because identical PDF uploads returned 26 versus 27 days despite both inserting 417 rows.",
+    "Harden background-job failure handling so exceptions during row conversion/insertion mark the job error instead of leaving it parsing indefinitely.",
+    "Consider durable workers or stale-job recovery because FastAPI BackgroundTasks jobs are lost on process restart."
+  ],
+  "critical_code_review_comments": [
+    "_process_pdf_job only catches parse exceptions. Exceptions after parsing (invalid day/month fields or Mongo insert failures) can escape before the final done update, leaving status='parsing' permanently.",
+    "In-process BackgroundTasks are not durable: a backend restart after returning job_id can strand queued/parsing Mongo job records with no retry/recovery mechanism.",
+    "Uploading the same PDF inserts duplicate rows; no file hash or idempotency guard prevents analytics totals from doubling."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_assets/93vg8gfc_1-6.pdf"
+  ],
+  "success_rate": {
+    "backend": "100% (3/3 async upload API tests passed)",
+    "frontend": "90% (core upload and regression flows passed; day-count content varied on one upload)"
+  },
+  "seed_data_creation": "Two real-PDF test uploads temporarily inserted 417 June rows each; all 834 test-created entry rows were deleted by ID. The original 417 June entries remain. Upload job audit records remain because no job-delete endpoint exists.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Async ingress blocker is resolved. Public API enqueue is immediate and jobs completed in 117-139 seconds. Final June entry count was verified as 417. Watch for Gemini day count varying between 26 and 27 for the same source PDF.",
+  "rca_of_the_issue": "The former 502 was resolved by returning a job_id before Gemini parsing and polling status. Remaining 26/27-day variance originates in nondeterministic Gemini extraction because status.days is directly len(parsed.days) without source-level completeness validation."
+}

@@ -1,14 +1,20 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
+import tempfile
+import re
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+
+from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
 
 
 ROOT_DIR = Path(__file__).parent
@@ -19,54 +25,300 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
-# Create a router with the /api prefix
+app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+
+# ---------- Models ----------
+class Entry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    date: str  # YYYY-MM-DD
+    month: str  # YYYY-MM
+    item: str
+    pcs: float
+    rate: float = 0.0
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
+class EntryCreate(BaseModel):
+    date: str
+    item: str
+    pcs: float
+    rate: float = 0.0
+
+
+class EntryUpdate(BaseModel):
+    rate: Optional[float] = None
+    pcs: Optional[float] = None
+    item: Optional[str] = None
+    date: Optional[str] = None
+
+
+class BulkRateUpdate(BaseModel):
+    item: str
+    rate: float
+    month: str
+
+
+# ---------- Helpers ----------
+def month_of(date_str: str) -> str:
+    return date_str[:7]
+
+
+PARSE_PROMPT = """You are parsing an Apple Notes PDF export containing business inventory/sales data written in a repeating pattern:
+- A date header in the format "D-M" (day-month, e.g. "1-6" = June 1, "12-6" = June 12). Sometimes there may be a year like "1-6-2025" or just "1-6".
+- Followed by rows of a two-column table: first column is a number (pcs / quantity), second column is an item name (English text). The item name may contain spaces.
+- Then the next date, then next table, and so on.
+
+Extract EVERY row and return STRICTLY a JSON object with this schema (no markdown, no prose, no code fences):
+{
+  "default_year": 2025,
+  "days": [
+    {"day": 1, "month": 6, "year": 2025, "entries": [{"pcs": 2000, "item": "Tomi aj"}, ...]},
+    ...
+  ]
+}
+
+Rules:
+- If year is not present in the PDF, use 2025 as default_year.
+- pcs must be a number (strip commas). item must be the full item name as written.
+- Do NOT skip any row. Preserve original spelling and case of item names.
+- If the same date appears multiple times (continued on another page), merge their entries into a single day object.
+- Output ONLY the JSON object. Nothing else.
+"""
+
+
+async def parse_pdf_with_gemini(pdf_path: str) -> dict:
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"pdf-parse-{uuid.uuid4()}",
+        system_message="You are a precise data extraction assistant. Always return only valid JSON matching the requested schema.",
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    pdf_file = FileContentWithMimeType(file_path=pdf_path, mime_type="application/pdf")
+    msg = UserMessage(text=PARSE_PROMPT, file_contents=[pdf_file])
+    response_text = await chat.send_message(msg)
+
+    # Strip potential code fences
+    cleaned = response_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    # Try to grab JSON block if extra prose
+    m = re.search(r"\{[\s\S]*\}", cleaned)
+    if m:
+        cleaned = m.group(0)
+    data = json.loads(cleaned)
+    return data
+
+
+# ---------- Routes ----------
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Vyapar API running"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+async def _process_pdf_job(job_id: str, tmp_path: str):
+    """Background: parse PDF via Gemini and insert entries. Updates job doc."""
+    try:
+        await db.upload_jobs.update_one({"job_id": job_id}, {"$set": {"status": "parsing"}})
+        parsed = await parse_pdf_with_gemini(tmp_path)
+    except Exception as e:
+        logger.exception("PDF parsing failed")
+        await db.upload_jobs.update_one(
+            {"job_id": job_id},
+            {"$set": {"status": "error", "error": str(e), "finished_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        return
 
-# Include the router in the main app
+    try:
+        os.unlink(tmp_path)
+    except Exception:
+        pass
+
+    default_year = int(parsed.get("default_year") or 2025)
+    days = parsed.get("days", [])
+    inserted = 0
+    months_touched = set()
+
+    for day in days:
+        year = int(day.get("year") or default_year)
+        month = int(day.get("month"))
+        d = int(day.get("day"))
+        date_str = f"{year:04d}-{month:02d}-{d:02d}"
+        month_str = f"{year:04d}-{month:02d}"
+        months_touched.add(month_str)
+        for row in day.get("entries", []):
+            try:
+                pcs = float(str(row.get("pcs")).replace(",", ""))
+            except Exception:
+                continue
+            item = str(row.get("item", "")).strip()
+            if not item:
+                continue
+            entry = Entry(date=date_str, month=month_str, item=item, pcs=pcs, rate=0.0)
+            await db.entries.insert_one(entry.model_dump())
+            inserted += 1
+
+    await db.upload_jobs.update_one(
+        {"job_id": job_id},
+        {"$set": {
+            "status": "done",
+            "inserted": inserted,
+            "days": len(days),
+            "months": sorted(months_touched),
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+
+
+@api_router.post("/upload-pdf")
+async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    job_id = str(uuid.uuid4())
+    await db.upload_jobs.insert_one({
+        "job_id": job_id,
+        "status": "queued",
+        "filename": file.filename,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    background_tasks.add_task(_process_pdf_job, job_id, tmp_path)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@api_router.get("/upload-status/{job_id}")
+async def upload_status(job_id: str):
+    job = await db.upload_jobs.find_one({"job_id": job_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@api_router.get("/months")
+async def get_months():
+    months = await db.entries.distinct("month")
+    months = sorted([m for m in months if m], reverse=True)
+    return {"months": months}
+
+
+@api_router.get("/entries")
+async def get_entries(month: Optional[str] = None):
+    query = {}
+    if month:
+        query["month"] = month
+    entries = await db.entries.find(query, {"_id": 0}).sort([("date", 1), ("created_at", 1)]).to_list(10000)
+    return {"entries": entries}
+
+
+@api_router.post("/entries", response_model=Entry)
+async def create_entry(payload: EntryCreate):
+    entry = Entry(date=payload.date, month=month_of(payload.date), item=payload.item.strip(), pcs=payload.pcs, rate=payload.rate)
+    await db.entries.insert_one(entry.model_dump())
+    return entry
+
+
+@api_router.patch("/entries/{entry_id}")
+async def update_entry(entry_id: str, payload: EntryUpdate):
+    update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
+    if "date" in update:
+        update["month"] = month_of(update["date"])
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    result = await db.entries.update_one({"id": entry_id}, {"$set": update})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    entry = await db.entries.find_one({"id": entry_id}, {"_id": 0})
+    return entry
+
+
+@api_router.delete("/entries/{entry_id}")
+async def delete_entry(entry_id: str):
+    result = await db.entries.delete_one({"id": entry_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"ok": True}
+
+
+@api_router.post("/entries/bulk-rate")
+async def bulk_rate(payload: BulkRateUpdate):
+    """Apply a rate to all entries of a given item in a given month."""
+    result = await db.entries.update_many(
+        {"item": payload.item, "month": payload.month},
+        {"$set": {"rate": payload.rate}},
+    )
+    return {"updated": result.modified_count}
+
+
+@api_router.get("/summary")
+async def summary(month: str):
+    entries = await db.entries.find({"month": month}, {"_id": 0}).to_list(20000)
+
+    total_revenue = 0.0
+    total_pcs = 0.0
+    active_days = set()
+    daily = {}   # date -> {pcs, revenue}
+    items = {}   # item -> {pcs, revenue}
+
+    for e in entries:
+        pcs = float(e.get("pcs", 0) or 0)
+        rate = float(e.get("rate", 0) or 0)
+        rev = pcs * rate
+        total_pcs += pcs
+        total_revenue += rev
+        active_days.add(e["date"])
+        d = daily.setdefault(e["date"], {"date": e["date"], "pcs": 0.0, "revenue": 0.0, "entries": 0})
+        d["pcs"] += pcs
+        d["revenue"] += rev
+        d["entries"] += 1
+        it = items.setdefault(e["item"], {"item": e["item"], "pcs": 0.0, "revenue": 0.0, "entries": 0})
+        it["pcs"] += pcs
+        it["revenue"] += rev
+        it["entries"] += 1
+
+    daily_list = sorted(daily.values(), key=lambda x: x["date"])
+    items_list = sorted(items.values(), key=lambda x: x["pcs"], reverse=True)
+
+    top_item_by_pcs = items_list[0]["item"] if items_list else None
+    top_item_by_revenue = None
+    if items_list:
+        top_item_by_revenue = max(items_list, key=lambda x: x["revenue"])["item"]
+
+    return {
+        "month": month,
+        "total_revenue": round(total_revenue, 2),
+        "total_pcs": total_pcs,
+        "active_days": len(active_days),
+        "top_item_by_pcs": top_item_by_pcs,
+        "top_item_by_revenue": top_item_by_revenue,
+        "total_entries": len(entries),
+        "daily": daily_list,
+        "items": items_list,
+    }
+
+
+@api_router.delete("/month/{month}")
+async def delete_month(month: str):
+    result = await db.entries.delete_many({"month": month})
+    return {"deleted": result.deleted_count}
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,12 +329,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

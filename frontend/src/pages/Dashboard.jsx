@@ -1,0 +1,254 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CurrencyInr, Package, Calendar, Trophy, ChartLineUp, ChartBar, Storefront, TrashSimple } from "@phosphor-icons/react";
+import { KpiCard } from "@/components/KpiCard";
+import { PdfUpload } from "@/components/PdfUpload";
+import { EntriesTable } from "@/components/EntriesTable";
+import { ItemSummaryTable } from "@/components/ItemSummaryTable";
+import { DailyTrendChart } from "@/components/DailyTrendChart";
+import { TopItemsChart } from "@/components/TopItemsChart";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { fetchMonths, fetchEntries, fetchSummary, formatINR, formatNumber, monthLabel, deleteMonth } from "@/lib/api";
+import { toast } from "sonner";
+
+const currentMonthKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+export default function Dashboard() {
+  const [months, setMonths] = useState([]);
+  const [month, setMonth] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const refreshMonths = useCallback(async () => {
+    const ms = await fetchMonths();
+    setMonths(ms);
+    return ms;
+  }, []);
+
+  const refresh = useCallback(async (targetMonth) => {
+    if (!targetMonth) {
+      setEntries([]);
+      setSummary(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [es, sm] = await Promise.all([fetchEntries(targetMonth), fetchSummary(targetMonth)]);
+      setEntries(es);
+      setSummary(sm);
+    } catch (e) {
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const ms = await refreshMonths();
+      const initial = ms[0] || currentMonthKey();
+      setMonth(initial);
+      await refresh(initial);
+    })();
+  }, [refreshMonths, refresh]);
+
+  const onUploadDone = async () => {
+    const ms = await refreshMonths();
+    const first = ms[0] || currentMonthKey();
+    setMonth(first);
+    await refresh(first);
+  };
+
+  const onDataChange = () => refresh(month);
+
+  const onDeleteMonth = async () => {
+    if (!month) return;
+    try {
+      const r = await deleteMonth(month);
+      toast.success(`Deleted ${r.deleted} entries for ${monthLabel(month)}`);
+      const ms = await refreshMonths();
+      const nxt = ms[0] || null;
+      setMonth(nxt);
+      await refresh(nxt);
+    } catch (e) {
+      toast.error("Delete failed");
+    }
+  };
+
+  const empty = !summary || summary.total_entries === 0;
+
+  const revenueByDay = summary?.daily || [];
+  const items = summary?.items || [];
+
+  return (
+    <div className="min-h-screen grain-bg">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white border-b border-neutral-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0D5C46] flex items-center justify-center">
+              <Storefront size={22} weight="duotone" className="text-white" />
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-neutral-900">
+                Vyapar<span className="text-emerald-600">.</span>Notes
+              </h1>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Business Analytics from your Apple Notes</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <label htmlFor="month-select" className="text-xs uppercase tracking-[0.15em] text-neutral-500 font-medium">Month</label>
+            <select
+              id="month-select"
+              data-testid="month-select"
+              value={month || ""}
+              onChange={(e) => {
+                setMonth(e.target.value);
+                refresh(e.target.value);
+              }}
+              className="h-10 rounded-full border border-neutral-300 text-sm px-4 pr-8 bg-white font-medium min-w-[140px]"
+            >
+              {months.length === 0 && <option value="">No data</option>}
+              {months.map((m) => (
+                <option key={m} value={m}>{monthLabel(m)}</option>
+              ))}
+            </select>
+            {month && !empty && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="delete-month-btn" className="rounded-full border-red-200 text-red-700 hover:bg-red-50">
+                    <TrashSimple size={14} className="mr-1" /> Clear month
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete all data for {monthLabel(month)}?</AlertDialogTitle>
+                    <AlertDialogDescription>This will permanently remove all entries for this month. This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction data-testid="confirm-delete-month" onClick={onDeleteMonth} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* Upload */}
+        <PdfUpload onDone={onUploadDone} />
+
+        {empty ? (
+          <Card className="p-10 text-center border border-black/5 shadow-sm bg-white" data-testid="empty-state">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+              <ChartLineUp size={32} weight="duotone" className="text-emerald-700" />
+            </div>
+            <h2 className="font-display text-2xl font-semibold text-neutral-900">Ready when you are</h2>
+            <p className="mt-2 text-neutral-500 max-w-md mx-auto">
+              Upload your Apple Notes PDF (with date headers like 1-6 and pcs / item tables) to see daily totals, monthly totals and beautiful charts.
+            </p>
+          </Card>
+        ) : (
+          <>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <KpiCard
+                label="Monthly Revenue"
+                value={formatINR(summary.total_revenue)}
+                sub={`${summary.total_entries} entries`}
+                icon={CurrencyInr}
+                accent="text-emerald-700"
+                testid="kpi-revenue"
+              />
+              <KpiCard
+                label="Total Pcs"
+                value={formatNumber(summary.total_pcs)}
+                sub="Across all items"
+                icon={Package}
+                testid="kpi-pcs"
+              />
+              <KpiCard
+                label="Active Days"
+                value={summary.active_days}
+                sub={`in ${monthLabel(month)}`}
+                icon={Calendar}
+                testid="kpi-days"
+              />
+              <KpiCard
+                label="Top Item (Pcs)"
+                value={summary.top_item_by_pcs || "—"}
+                sub={summary.top_item_by_revenue && summary.top_item_by_revenue !== summary.top_item_by_pcs ? `By revenue: ${summary.top_item_by_revenue}` : "Leading item"}
+                icon={Trophy}
+                testid="kpi-top-item"
+              />
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              <Card className="xl:col-span-2 p-4 border border-black/5 shadow-sm bg-white" data-testid="daily-trend-card">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-display font-semibold text-lg text-neutral-900">Daily Sales Trend</h3>
+                    <p className="text-xs text-neutral-500">Revenue per day in {monthLabel(month)}</p>
+                  </div>
+                  <ChartLineUp size={22} weight="duotone" className="text-neutral-400" />
+                </div>
+                <DailyTrendChart data={revenueByDay} />
+              </Card>
+
+              <Card className="p-4 border border-black/5 shadow-sm bg-white" data-testid="top-items-card">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-display font-semibold text-lg text-neutral-900">Top Items</h3>
+                    <p className="text-xs text-neutral-500">Best performers this month</p>
+                  </div>
+                  <ChartBar size={22} weight="duotone" className="text-neutral-400" />
+                </div>
+                <Tabs defaultValue="pcs" className="w-full">
+                  <TabsList className="grid grid-cols-2 w-full mb-2">
+                    <TabsTrigger value="pcs" data-testid="tab-top-pcs">By Pcs</TabsTrigger>
+                    <TabsTrigger value="revenue" data-testid="tab-top-revenue">By Revenue</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="pcs">
+                    <TopItemsChart data={items} metric="pcs" />
+                  </TabsContent>
+                  <TabsContent value="revenue">
+                    <TopItemsChart data={[...items].sort((a, b) => b.revenue - a.revenue)} metric="revenue" />
+                  </TabsContent>
+                </Tabs>
+              </Card>
+            </div>
+
+            {/* Entries table */}
+            <EntriesTable entries={entries} month={month} onChange={onDataChange} />
+
+            {/* Item summary */}
+            <ItemSummaryTable items={items} />
+          </>
+        )}
+
+        <footer className="py-8 text-center text-xs text-neutral-400">
+          Built with care for smart shopkeepers • {loading ? "Refreshing…" : "Live"}
+        </footer>
+      </main>
+    </div>
+  );
+}
