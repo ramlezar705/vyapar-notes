@@ -103,7 +103,7 @@ export const RatesManager = ({ items, itemRates, month, onChange }) => {
           <ListChecks size={16} weight="bold" className="mr-1" /> Manage Rates
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-auto">
         <DialogHeader>
           <DialogTitle className="font-display">Rate Manager</DialogTitle>
           <DialogDescription>

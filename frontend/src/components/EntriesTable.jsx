@@ -50,7 +50,7 @@ const RateInput = ({ value, onCommit, testid }) => {
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
       }}
-      className="h-8 w-24 text-right font-mono-num text-sm"
+      className="h-9 sm:h-8 w-20 sm:w-24 text-right font-mono-num text-sm"
       aria-label="Rate per piece"
     />
   );
@@ -111,17 +111,17 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
 
   return (
     <Card className="p-0 overflow-hidden border border-black/5 shadow-sm bg-white" data-testid="entries-table">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-neutral-100">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 border-b border-neutral-100">
+        <div className="min-w-0">
           <h3 className="font-display font-semibold text-lg text-neutral-900">Daily Entries</h3>
-          <p className="text-xs text-neutral-500 mt-0.5">Add rate for each row to calculate daily and monthly totals.</p>
+          <p className="text-xs text-neutral-500 mt-0.5">Add rate for each row — daily and monthly totals auto-calculate.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <RatesManager items={summaryItems} itemRates={itemRates} month={month} onChange={onChange} />
         </div>
       </div>
 
-      <div className="max-h-[720px] overflow-auto">
+      <div className="max-h-[720px] overflow-x-auto overflow-y-auto">
         {grouped.length === 0 && (
           <div className="p-10 text-center text-sm text-neutral-500">No entries yet. Upload a PDF or add manually.</div>
         )}
@@ -131,19 +131,19 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
           const dayRev = rows.reduce((a, r) => a + (r.pcs || 0) * (r.rate || 0), 0);
           return (
             <div key={date} className="border-b border-neutral-100 last:border-b-0">
-              <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50">
+              <div className="w-full flex flex-wrap items-center justify-between gap-y-1 px-3 sm:px-4 py-3 hover:bg-neutral-50">
                 <button
                   data-testid={`day-toggle-${date}`}
                   onClick={() => setOpenDates({ ...openDates, [date]: !open })}
-                  className="flex items-center gap-2 flex-1 text-left"
+                  className="flex items-center gap-2 flex-1 min-w-0 text-left"
                 >
                   {open ? <CaretDown size={16} /> : <CaretRight size={16} />}
-                  <span className="font-display font-semibold text-neutral-900">{date}</span>
-                  <span className="text-xs text-neutral-500 ml-2">{rows.length} items</span>
+                  <span className="font-display font-semibold text-neutral-900 whitespace-nowrap">{date}</span>
+                  <span className="hidden sm:inline text-xs text-neutral-500 ml-2 whitespace-nowrap">{rows.length} items</span>
                 </button>
-                <div className="flex items-center gap-4 text-sm font-mono-num">
-                  <span className="text-neutral-600">{formatNumber(dayPcs)} pcs</span>
-                  <span className="text-emerald-700 font-semibold">{formatINR(dayRev)}</span>
+                <div className="flex items-center gap-2 sm:gap-4 text-sm font-mono-num shrink-0">
+                  <span className="text-neutral-600 whitespace-nowrap text-xs sm:text-sm">{formatNumber(dayPcs)} pcs</span>
+                  <span className="text-emerald-700 font-semibold whitespace-nowrap">{formatINR(dayRev)}</span>
                   <button
                     data-testid={`share-day-${date}`}
                     onClick={(e) => {
@@ -159,8 +159,8 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                 </div>
               </div>
               {open && (
-                <div className="px-4 pb-4">
-                  <table className="w-full text-sm">
+                <div className="px-3 sm:px-4 pb-4 overflow-x-auto">
+                  <table className="w-full text-sm min-w-[520px]">
                     <thead>
                       <tr className="text-[10px] uppercase tracking-[0.15em] text-neutral-500">
                         <th className="text-left font-medium py-2 w-1/2">Item</th>

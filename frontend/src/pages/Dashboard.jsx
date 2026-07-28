@@ -124,20 +124,20 @@ export default function Dashboard() {
     <div className="min-h-screen grain-bg">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0D5C46] flex items-center justify-center">
-              <Storefront size={22} weight="duotone" className="text-white" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#0D5C46] flex items-center justify-center shrink-0">
+              <Storefront size={20} weight="duotone" className="text-white" />
             </div>
-            <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-neutral-900">
+            <div className="min-w-0">
+              <h1 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-neutral-900 leading-tight">
                 Vyapar<span className="text-emerald-600">.</span>Notes
               </h1>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">Business Analytics from your Apple Notes</p>
+              <p className="hidden sm:block text-[11px] uppercase tracking-[0.2em] text-neutral-500">Business Analytics from your Apple Notes</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <label htmlFor="month-select" className="text-xs uppercase tracking-[0.15em] text-neutral-500 font-medium">Month</label>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <label htmlFor="month-select" className="hidden sm:inline text-xs uppercase tracking-[0.15em] text-neutral-500 font-medium">Month</label>
             <select
               id="month-select"
               data-testid="month-select"
@@ -146,7 +146,7 @@ export default function Dashboard() {
                 setMonth(e.target.value);
                 refresh(e.target.value);
               }}
-              className="h-10 rounded-full border border-neutral-300 text-sm px-4 pr-8 bg-white font-medium min-w-[140px]"
+              className="h-9 sm:h-10 rounded-full border border-neutral-300 text-sm px-3 sm:px-4 pr-8 bg-white font-medium"
             >
               {months.length === 0 && <option value="">No data</option>}
               {months.map((m) => (
@@ -159,16 +159,17 @@ export default function Dashboard() {
                 size="sm"
                 data-testid="share-month-btn"
                 onClick={shareMonthlySummary}
-                className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-2 sm:px-3"
+                title="Share monthly summary on WhatsApp"
               >
-                <WhatsappLogo size={14} weight="fill" className="mr-1" /> Share month
+                <WhatsappLogo size={14} weight="fill" className="sm:mr-1" /> <span className="hidden sm:inline">Share month</span>
               </Button>
             )}
             {month && !empty && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="delete-month-btn" className="rounded-full border-red-200 text-red-700 hover:bg-red-50">
-                    <TrashSimple size={14} className="mr-1" /> Clear month
+                  <Button variant="outline" size="sm" data-testid="delete-month-btn" className="rounded-full border-red-200 text-red-700 hover:bg-red-50 px-2 sm:px-3" title="Clear this month's data">
+                    <TrashSimple size={14} className="sm:mr-1" /> <span className="hidden sm:inline">Clear month</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -187,7 +188,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Upload */}
         <PdfUpload onDone={onUploadDone} />
 
