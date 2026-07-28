@@ -43,8 +43,8 @@ export const DailyTrendChart = ({ data }) => {
             name="Revenue"
             stroke="#0D5C46"
             strokeWidth={2.5}
-            dot={{ r: 3, fill: "#10B981", stroke: "#0D5C46", strokeWidth: 1 }}
-            activeDot={{ r: 5 }}
+            dot={{ r: 3, fill: "#C2410C", stroke: "#0D5C46", strokeWidth: 1 }}
+            activeDot={{ r: 6, fill: "#C2410C", stroke: "#0D5C46", strokeWidth: 2 }}
           />
         </LineChart>
       </ResponsiveContainer>

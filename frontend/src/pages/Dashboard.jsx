@@ -132,23 +132,22 @@ export default function Dashboard() {
   const items = summary?.items || [];
 
   return (
-    <div className="min-h-screen grain-bg">
+    <div className="min-h-screen paper-bg">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-neutral-200">
+      <header className="sticky top-0 z-30 bg-[#FBF8F1]/80 backdrop-blur-md border-b border-[#E7DFCE]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#0D5C46] flex items-center justify-center shrink-0">
-              <Storefront size={20} weight="duotone" className="text-white" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0D5C46] flex items-center justify-center shrink-0 shadow-[0_4px_14px_-4px_rgba(13,92,70,0.5)]">
+              <Storefront size={22} weight="duotone" className="text-[#FBF8F1]" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-neutral-900 leading-tight">
-                Vyapar<span className="text-emerald-600">.</span>Notes
+              <h1 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 leading-none">
+                Vyapar<span className="text-[#C2410C] italic">.</span>Notes
               </h1>
-              <p className="hidden sm:block text-[11px] uppercase tracking-[0.2em] text-neutral-500">Business Analytics from your Apple Notes</p>
+              <p className="hidden sm:block text-[10px] uppercase tracking-[0.25em] text-neutral-500 mt-1">Apple Notes → Business Analytics</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <label htmlFor="month-select" className="hidden sm:inline text-xs uppercase tracking-[0.15em] text-neutral-500 font-medium">Month</label>
             <select
               id="month-select"
               data-testid="month-select"
@@ -157,7 +156,7 @@ export default function Dashboard() {
                 setMonth(e.target.value);
                 refresh(e.target.value);
               }}
-              className={`h-9 sm:h-10 rounded-full border text-sm px-3 sm:px-4 pr-8 bg-white font-medium ${isPastMonth ? "border-amber-300 text-amber-800" : "border-neutral-300"}`}
+              className={`h-9 sm:h-10 rounded-full border text-sm px-3 sm:px-4 pr-8 bg-white font-medium transition-colors ${isPastMonth ? "border-amber-300 text-amber-800" : "border-[#D9CDB4] text-neutral-800"}`}
             >
               {months.length === 0 && <option value="">No data</option>}
               {months.map((m) => (
@@ -168,7 +167,7 @@ export default function Dashboard() {
               <span
                 data-testid="settled-badge"
                 title="Settled — protected from bulk changes"
-                className="flex items-center gap-1 text-[11px] uppercase tracking-[0.15em] font-medium text-amber-800 bg-amber-100 border border-amber-200 rounded-full px-2 py-1"
+                className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] font-medium text-amber-800 bg-amber-100 border border-amber-200 rounded-full px-2 py-1"
               >
                 <ShieldCheck size={12} weight="fill" /> Settled
               </span>
@@ -213,12 +212,12 @@ export default function Dashboard() {
         <PdfUpload onDone={onUploadDone} />
 
         {empty ? (
-          <Card className="p-10 text-center border border-black/5 shadow-sm bg-white" data-testid="empty-state">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
+          <Card className="p-10 sm:p-14 text-center border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_20px_60px_-30px_rgba(31,25,23,0.25)] bg-white fade" data-testid="empty-state">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-5">
               <ChartLineUp size={32} weight="duotone" className="text-emerald-700" />
             </div>
-            <h2 className="font-display text-2xl font-semibold text-neutral-900">Ready when you are</h2>
-            <p className="mt-2 text-neutral-500 max-w-md mx-auto">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-neutral-900 leading-tight">Ready when you are</h2>
+            <p className="mt-3 text-neutral-500 max-w-md mx-auto text-sm sm:text-base">
               Upload your Apple Notes PDF (with date headers like 1-6 and pcs / item tables) to see daily totals, monthly totals and beautiful charts.
             </p>
           </Card>
@@ -272,7 +271,8 @@ export default function Dashboard() {
                 value={formatINR(summary.total_revenue)}
                 sub={`${summary.total_entries} entries`}
                 icon={CurrencyInr}
-                accent="text-emerald-700"
+                tone="revenue"
+                delay={0}
                 testid="kpi-revenue"
               />
               <KpiCard
@@ -280,6 +280,8 @@ export default function Dashboard() {
                 value={formatNumber(summary.total_pcs)}
                 sub="Across all items"
                 icon={Package}
+                tone="accent"
+                delay={60}
                 testid="kpi-pcs"
               />
               <KpiCard
@@ -287,6 +289,8 @@ export default function Dashboard() {
                 value={summary.active_days}
                 sub={`in ${monthLabel(month)}`}
                 icon={Calendar}
+                tone="calendar"
+                delay={120}
                 testid="kpi-days"
               />
               <KpiCard
@@ -294,16 +298,18 @@ export default function Dashboard() {
                 value={summary.top_item_by_pcs || "—"}
                 sub={summary.top_item_by_revenue && summary.top_item_by_revenue !== summary.top_item_by_pcs ? `By revenue: ${summary.top_item_by_revenue}` : "Leading item"}
                 icon={Trophy}
+                tone="trophy"
+                delay={180}
                 testid="kpi-top-item"
               />
             </div>
 
             {/* Charts */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <Card className="xl:col-span-2 p-4 border border-black/5 shadow-sm bg-white" data-testid="daily-trend-card">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 rise" style={{ animationDelay: "240ms" }}>
+              <Card className="xl:col-span-2 p-4 sm:p-5 border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="daily-trend-card">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-display font-semibold text-lg text-neutral-900">Daily Sales Trend</h3>
+                    <h3 className="font-display font-semibold text-xl text-neutral-900">Daily Sales Trend</h3>
                     <p className="text-xs text-neutral-500">Revenue per day in {monthLabel(month)}</p>
                   </div>
                   <ChartLineUp size={22} weight="duotone" className="text-neutral-400" />
@@ -311,10 +317,10 @@ export default function Dashboard() {
                 <DailyTrendChart data={revenueByDay} />
               </Card>
 
-              <Card className="p-4 border border-black/5 shadow-sm bg-white" data-testid="top-items-card">
+              <Card className="p-4 sm:p-5 border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="top-items-card">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-display font-semibold text-lg text-neutral-900">Top Items</h3>
+                    <h3 className="font-display font-semibold text-xl text-neutral-900">Top Items</h3>
                     <p className="text-xs text-neutral-500">Best performers this month</p>
                   </div>
                   <ChartBar size={22} weight="duotone" className="text-neutral-400" />
@@ -335,18 +341,24 @@ export default function Dashboard() {
             </div>
 
             {/* Entries table */}
-            <EntriesTable entries={entries} month={month} itemRates={itemRates} summaryItems={items} locked={locked} onChange={onDataChange} />
+            <div className="rise" style={{ animationDelay: "320ms" }}>
+              <EntriesTable entries={entries} month={month} itemRates={itemRates} summaryItems={items} locked={locked} onChange={onDataChange} />
+            </div>
 
             {/* Keyword search */}
-            <KeywordSearch items={items} />
+            <div className="rise" style={{ animationDelay: "360ms" }}>
+              <KeywordSearch items={items} />
+            </div>
 
             {/* Item summary */}
-            <ItemSummaryTable items={items} />
+            <div className="rise" style={{ animationDelay: "400ms" }}>
+              <ItemSummaryTable items={items} />
+            </div>
           </>
         )}
 
-        <footer className="py-8 text-center text-xs text-neutral-400">
-          Built with care for smart shopkeepers • {loading ? "Refreshing…" : "Live"}
+        <footer className="pt-10 pb-8 text-center text-[11px] uppercase tracking-[0.25em] text-neutral-400">
+          <span className="brand-underline">Vyapar<span className="text-[#C2410C]">.</span>Notes</span> · Built for smart shopkeepers · {loading ? "syncing…" : "live"}
         </footer>
       </main>
     </div>

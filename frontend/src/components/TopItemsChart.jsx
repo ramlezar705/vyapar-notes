@@ -1,7 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { formatINR, formatNumber } from "@/lib/api";
 
-const COLORS = ["#0D5C46", "#10B981", "#F59E0B", "#EA580C", "#0891B2", "#7C3AED", "#DB2777", "#059669", "#DC2626", "#4F46E5"];
+const COLORS = ["#0D5C46", "#C2410C", "#F59E0B", "#B45309", "#0891B2", "#7C3AED", "#DB2777", "#059669", "#DC2626", "#4F46E5"];
 
 export const TopItemsChart = ({ data, metric = "pcs" }) => {
   // data: sorted items list

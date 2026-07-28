@@ -6,10 +6,10 @@ export const ItemSummaryTable = ({ items }) => {
   const totalRev = items.reduce((a, x) => a + (x.revenue || 0), 0);
 
   return (
-    <Card className="p-0 overflow-hidden border border-black/5 shadow-sm bg-white" data-testid="item-summary-table">
-      <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+    <Card className="p-0 overflow-hidden border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="item-summary-table">
+      <div className="p-4 sm:p-5 border-b border-neutral-100 flex items-center justify-between">
         <div>
-          <h3 className="font-display font-semibold text-lg text-neutral-900">Item-wise Monthly Summary</h3>
+          <h3 className="font-display font-semibold text-xl text-neutral-900">Item-wise Monthly Summary</h3>
           <p className="text-xs text-neutral-500 mt-0.5">Total pcs and revenue per item across the month.</p>
         </div>
         <span className="text-xs text-neutral-500 font-mono-num">{items.length} items</span>

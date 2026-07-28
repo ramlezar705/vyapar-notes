@@ -35,11 +35,11 @@ export const KeywordSearch = ({ items }) => {
   }));
 
   return (
-    <Card className="p-4 border border-black/5 shadow-sm bg-white" data-testid="keyword-search-card">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <Card className="p-4 sm:p-5 border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="keyword-search-card">
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div>
-          <h3 className="font-display font-semibold text-lg text-neutral-900">Keyword Search</h3>
-          <p className="text-xs text-neutral-500">Type any word (e.g. "aand", "aj") to group all matching items with pcs and revenue.</p>
+          <h3 className="font-display font-semibold text-xl text-neutral-900">Keyword Search</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">Type any word (e.g. "aand", "aj") to group all matching items with pcs and revenue.</p>
         </div>
       </div>
 

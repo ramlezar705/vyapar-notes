@@ -111,10 +111,10 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
   };
 
   return (
-    <Card className="p-0 overflow-hidden border border-black/5 shadow-sm bg-white" data-testid="entries-table">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 border-b border-neutral-100">
+    <Card className="p-0 overflow-hidden border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="entries-table">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 border-b border-neutral-100">
         <div className="min-w-0">
-          <h3 className="font-display font-semibold text-lg text-neutral-900">Daily Entries</h3>
+          <h3 className="font-display font-semibold text-xl text-neutral-900">Daily Entries</h3>
           <p className="text-xs text-neutral-500 mt-0.5">Add rate for each row — daily and monthly totals auto-calculate.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

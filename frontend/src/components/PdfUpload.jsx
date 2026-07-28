@@ -60,17 +60,17 @@ export const PdfUpload = ({ onDone }) => {
         const f = e.dataTransfer.files?.[0];
         handleFile(f);
       }}
-      className={`relative rounded-xl border-2 border-dashed transition-colors p-4 sm:p-6 ${
-        dragging ? "border-emerald-500 bg-emerald-50" : "border-neutral-300 bg-white"
+      className={`relative rounded-2xl border-2 border-dashed transition-all duration-300 p-4 sm:p-6 ${
+        dragging ? "border-[#0D5C46] bg-emerald-50 scale-[1.01]" : "border-[#D9CDB4] bg-white hover:border-[#0D5C46]/40"
       }`}
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5">
+        <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
           <FilePdf size={26} weight="duotone" className="text-emerald-700" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-neutral-900 font-display">Import Apple Notes PDF</p>
-          <p className="text-xs text-neutral-500 mt-0.5">Drag & drop, or click below. AI will read dates, items & pcs.</p>
+          <p className="font-display text-lg sm:text-xl font-semibold text-neutral-900 leading-tight">Import Apple Notes PDF</p>
+          <p className="text-xs sm:text-sm text-neutral-500 mt-1">Drag & drop, or click to browse. AI will read every date, item and pcs from the export.</p>
         </div>
         <input
           ref={inputRef}
