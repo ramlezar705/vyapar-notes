@@ -127,59 +127,65 @@ async def root():
 async def _process_pdf_job(job_id: str, tmp_path: str):
     """Background: parse PDF via Gemini and insert entries. Updates job doc."""
     try:
-        await db.upload_jobs.update_one({"job_id": job_id}, {"$set": {"status": "parsing"}})
-        parsed = await parse_pdf_with_gemini(tmp_path)
+        try:
+            await db.upload_jobs.update_one({"job_id": job_id}, {"$set": {"status": "parsing"}})
+            parsed = await parse_pdf_with_gemini(tmp_path)
+        except Exception as e:
+            logger.exception("PDF parsing failed")
+            await db.upload_jobs.update_one(
+                {"job_id": job_id},
+                {"$set": {"status": "error", "error": str(e), "finished_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            return
+
+        default_year = int(parsed.get("default_year") or 2025)
+        days = parsed.get("days", [])
+        inserted = 0
+        months_touched = set()
+
+        for day in days:
+            try:
+                year = int(day.get("year") or default_year)
+                month = int(day.get("month"))
+                d = int(day.get("day"))
+            except Exception:
+                continue
+            date_str = f"{year:04d}-{month:02d}-{d:02d}"
+            month_str = f"{year:04d}-{month:02d}"
+            months_touched.add(month_str)
+            for row in day.get("entries", []):
+                try:
+                    pcs = float(str(row.get("pcs")).replace(",", ""))
+                except Exception:
+                    continue
+                item = str(row.get("item", "")).strip()
+                if not item:
+                    continue
+                entry = Entry(date=date_str, month=month_str, item=item, pcs=pcs, rate=0.0)
+                await db.entries.insert_one(entry.model_dump())
+                inserted += 1
+
+        await db.upload_jobs.update_one(
+            {"job_id": job_id},
+            {"$set": {
+                "status": "done",
+                "inserted": inserted,
+                "days": len(days),
+                "months": sorted(months_touched),
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
     except Exception as e:
-        logger.exception("PDF parsing failed")
+        logger.exception("Unexpected error in PDF job")
         await db.upload_jobs.update_one(
             {"job_id": job_id},
             {"$set": {"status": "error", "error": str(e), "finished_at": datetime.now(timezone.utc).isoformat()}},
         )
+    finally:
         try:
             os.unlink(tmp_path)
         except Exception:
             pass
-        return
-
-    try:
-        os.unlink(tmp_path)
-    except Exception:
-        pass
-
-    default_year = int(parsed.get("default_year") or 2025)
-    days = parsed.get("days", [])
-    inserted = 0
-    months_touched = set()
-
-    for day in days:
-        year = int(day.get("year") or default_year)
-        month = int(day.get("month"))
-        d = int(day.get("day"))
-        date_str = f"{year:04d}-{month:02d}-{d:02d}"
-        month_str = f"{year:04d}-{month:02d}"
-        months_touched.add(month_str)
-        for row in day.get("entries", []):
-            try:
-                pcs = float(str(row.get("pcs")).replace(",", ""))
-            except Exception:
-                continue
-            item = str(row.get("item", "")).strip()
-            if not item:
-                continue
-            entry = Entry(date=date_str, month=month_str, item=item, pcs=pcs, rate=0.0)
-            await db.entries.insert_one(entry.model_dump())
-            inserted += 1
-
-    await db.upload_jobs.update_one(
-        {"job_id": job_id},
-        {"$set": {
-            "status": "done",
-            "inserted": inserted,
-            "days": len(days),
-            "months": sorted(months_touched),
-            "finished_at": datetime.now(timezone.utc).isoformat(),
-        }},
-    )
 
 
 @api_router.post("/upload-pdf")
