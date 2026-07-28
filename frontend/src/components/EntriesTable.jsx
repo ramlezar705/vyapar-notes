@@ -73,7 +73,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
       const res = await patchEntry(id, { rate });
       const applied = res?.auto_applied || 0;
       if (applied > 0) {
-        toast.success(`Rate updated. Auto-applied to ${applied} other ${applied === 1 ? "entry" : "entries"} of same item`);
+        toast.success(`Rate updated. Applied to ${applied} more ${applied === 1 ? "entry" : "entries"} in this month and forward.`);
       } else {
         toast.success("Rate updated");
       }

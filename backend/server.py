@@ -67,7 +67,8 @@ class BulkRateUpdate(BaseModel):
 
 
 class BulkRatesMap(BaseModel):
-    month: Optional[str] = None  # if provided, only apply within that month; else apply globally
+    month: Optional[str] = None
+    scope: Optional[str] = "forward"  # 'forward' (this month + all future), 'month' (this month only), 'all' (all months)
     rates: dict  # {item_name: rate}
 
 
@@ -288,10 +289,12 @@ async def update_entry(entry_id: str, payload: EntryUpdate):
     if "rate" in update and update["rate"] is not None and float(update["rate"]) > 0 and entry:
         rate = float(update["rate"])
         item = entry["item"]
+        entry_month = entry["month"]
         await _remember_rate(item, rate)
-        # Auto-apply to other zero-rate entries of same item (across all months)
+        # Auto-apply to same item in THIS month and all FUTURE months.
+        # Past (settled) months are left untouched.
         r = await db.entries.update_many(
-            {"item": item, "rate": {"$in": [0, 0.0, None]}, "id": {"$ne": entry_id}},
+            {"item": item, "month": {"$gte": entry_month}, "id": {"$ne": entry_id}},
             {"$set": {"rate": rate}},
         )
         auto_applied = r.modified_count
@@ -320,17 +323,25 @@ async def bulk_rate(payload: BulkRateUpdate):
 
 @api_router.post("/entries/rates/bulk-apply")
 async def bulk_rates_apply(payload: BulkRatesMap):
-    """Apply many item->rate mappings at once. If month set, restricts to that month; else applies globally."""
+    """Apply many item->rate mappings at once.
+    scope='forward' (default): this month + all future months.
+    scope='month': only this month.
+    scope='all': all months (including past).
+    """
     total_updated = 0
     items_touched = 0
+    scope = (payload.scope or "forward").lower()
     for item, rate in (payload.rates or {}).items():
         try:
             r = float(rate)
         except Exception:
             continue
         q = {"item": item}
-        if payload.month:
+        if payload.month and scope == "month":
             q["month"] = payload.month
+        elif payload.month and scope == "forward":
+            q["month"] = {"$gte": payload.month}
+        # scope == "all": no month filter
         result = await db.entries.update_many(q, {"$set": {"rate": r}})
         total_updated += result.modified_count
         items_touched += 1

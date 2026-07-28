@@ -23,7 +23,7 @@ export const RatesManager = ({ items, itemRates, month, onChange }) => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState({}); // {item: rateStr}
-  const [scope, setScope] = useState("month"); // 'month' | 'all'
+  const [scope, setScope] = useState("forward"); // 'forward' | 'month' | 'all'
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export const RatesManager = ({ items, itemRates, month, onChange }) => {
     }
     setSaving(true);
     try {
-      const res = await bulkRatesApply({ month: scope === "month" ? month : null, rates });
+      const res = await bulkRatesApply({ month, scope, rates });
       toast.success(`Applied rates to ${res.items} items (${res.updated} entries)`);
       setOpen(false);
       onChange && onChange();
@@ -124,15 +124,17 @@ export const RatesManager = ({ items, itemRates, month, onChange }) => {
           </div>
           <div className="flex items-center gap-1 border border-neutral-200 rounded-full p-0.5 text-xs">
             <button
+              data-testid="scope-forward-btn"
+              onClick={() => setScope("forward")}
+              title="Apply to this month and all future months (past months untouched)"
+              className={`px-3 py-1 rounded-full transition-colors ${scope === "forward" ? "bg-[#0D5C46] text-white" : "text-neutral-600"}`}
+            >This month + forward</button>
+            <button
               data-testid="scope-month-btn"
               onClick={() => setScope("month")}
+              title="Apply only to this month"
               className={`px-3 py-1 rounded-full transition-colors ${scope === "month" ? "bg-[#0D5C46] text-white" : "text-neutral-600"}`}
-            >This month</button>
-            <button
-              data-testid="scope-all-btn"
-              onClick={() => setScope("all")}
-              className={`px-3 py-1 rounded-full transition-colors ${scope === "all" ? "bg-[#0D5C46] text-white" : "text-neutral-600"}`}
-            >All months</button>
+            >Only this month</button>
           </div>
         </div>
 
