@@ -50,7 +50,7 @@ const RateInput = ({ value, onCommit, testid }) => {
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
       }}
-      className="h-9 sm:h-8 w-20 sm:w-24 text-right font-mono-num text-sm"
+      className="h-9 sm:h-8 w-[68px] sm:w-24 text-right font-mono-num text-sm px-2 sm:px-3"
       aria-label="Rate per piece"
     />
   );
@@ -159,22 +159,22 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                 </div>
               </div>
               {open && (
-                <div className="px-3 sm:px-4 pb-4 overflow-x-auto">
-                  <table className="w-full text-sm min-w-[520px]">
+                <div className="px-3 sm:px-4 pb-4">
+                  <table className="w-full text-sm table-fixed">
                     <thead>
                       <tr className="text-[10px] uppercase tracking-[0.15em] text-neutral-500">
-                        <th className="text-left font-medium py-2 w-1/2">Item</th>
-                        <th className="text-right font-medium py-2">Pcs</th>
-                        <th className="text-right font-medium py-2">Rate (₹)</th>
-                        <th className="text-right font-medium py-2">Total</th>
-                        <th className="w-8"></th>
+                        <th className="text-left font-medium py-2">Item</th>
+                        <th className="text-right font-medium py-2 w-[52px] sm:w-auto">Pcs</th>
+                        <th className="text-right font-medium py-2 w-[76px] sm:w-auto">Rate</th>
+                        <th className="text-right font-medium py-2 w-[72px] sm:w-auto">Total</th>
+                        <th className="w-6 sm:w-8"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((r) => (
                         <tr key={r.id} className="border-t border-neutral-100 hover:bg-neutral-50/60">
-                          <td className="py-2 pr-2 text-neutral-800">{r.item}</td>
-                          <td className="py-2 text-right font-mono-num">{formatNumber(r.pcs)}</td>
+                          <td className="py-2 pr-1 sm:pr-2 text-neutral-800 truncate max-w-0" title={r.item}>{r.item}</td>
+                          <td className="py-2 text-right font-mono-num text-xs sm:text-sm">{formatNumber(r.pcs)}</td>
                           <td className="py-2 text-right">
                             <div className="flex justify-end">
                               <RateInput
@@ -184,7 +184,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                               />
                             </div>
                           </td>
-                          <td className="py-2 text-right font-mono-num font-semibold text-emerald-700" data-testid={`row-total-${r.id}`}>
+                          <td className="py-2 text-right font-mono-num font-semibold text-emerald-700 text-xs sm:text-sm" data-testid={`row-total-${r.id}`}>
                             {formatINR((r.pcs || 0) * (r.rate || 0))}
                           </td>
                           <td className="py-2 text-right">
@@ -194,7 +194,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                               className="text-neutral-400 hover:text-red-600 p-1"
                               aria-label="Delete entry"
                             >
-                              <Trash size={16} />
+                              <Trash size={14} />
                             </button>
                           </td>
                         </tr>
@@ -233,7 +233,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                             value={newEntry[date]?.pcs || ""}
                             data-testid={`new-pcs-${date}`}
                             onChange={(e) => setNewEntry({ ...newEntry, [date]: { ...(newEntry[date] || {}), pcs: e.target.value } })}
-                            className="h-8 w-24 ml-auto text-right font-mono-num"
+                            className="h-9 sm:h-8 w-full max-w-[68px] sm:max-w-24 ml-auto text-right font-mono-num px-2 sm:px-3"
                           />
                         </td>
                         <td className="py-2 text-right">
@@ -243,7 +243,7 @@ export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = []
                             value={newEntry[date]?.rate || ""}
                             data-testid={`new-rate-${date}`}
                             onChange={(e) => setNewEntry({ ...newEntry, [date]: { ...(newEntry[date] || {}), rate: e.target.value } })}
-                            className="h-8 w-24 ml-auto text-right font-mono-num"
+                            className="h-9 sm:h-8 w-full max-w-[68px] sm:max-w-24 ml-auto text-right font-mono-num px-2 sm:px-3"
                           />
                         </td>
                         <td className="py-2 text-right"></td>
