@@ -66,6 +66,11 @@ class BulkRateUpdate(BaseModel):
     month: str
 
 
+class BulkRatesMap(BaseModel):
+    month: Optional[str] = None  # if provided, only apply within that month; else apply globally
+    rates: dict  # {item_name: rate}
+
+
 # ---------- Helpers ----------
 def month_of(date_str: str) -> str:
     return date_str[:7]
@@ -161,7 +166,7 @@ async def _process_pdf_job(job_id: str, tmp_path: str):
                 item = str(row.get("item", "")).strip()
                 if not item:
                     continue
-                entry = Entry(date=date_str, month=month_str, item=item, pcs=pcs, rate=0.0)
+                entry = Entry(date=date_str, month=month_str, item=item, pcs=pcs, rate=await _known_rate(item))
                 await db.entries.insert_one(entry.model_dump())
                 inserted += 1
 
@@ -233,10 +238,37 @@ async def get_entries(month: Optional[str] = None):
     return {"entries": entries}
 
 
+async def _remember_rate(item: str, rate: float):
+    """Save latest rate for an item to memory (item_rates collection)."""
+    if rate is None or rate <= 0:
+        return
+    await db.item_rates.update_one(
+        {"item": item},
+        {"$set": {"item": item, "rate": float(rate), "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+
+
+async def _known_rate(item: str) -> float:
+    doc = await db.item_rates.find_one({"item": item}, {"_id": 0, "rate": 1})
+    return float(doc["rate"]) if doc and doc.get("rate") else 0.0
+
+
+@api_router.get("/item-rates")
+async def get_item_rates():
+    docs = await db.item_rates.find({}, {"_id": 0}).to_list(5000)
+    return {"rates": {d["item"]: d["rate"] for d in docs}}
+
+
 @api_router.post("/entries", response_model=Entry)
 async def create_entry(payload: EntryCreate):
-    entry = Entry(date=payload.date, month=month_of(payload.date), item=payload.item.strip(), pcs=payload.pcs, rate=payload.rate)
+    item = payload.item.strip()
+    rate = payload.rate
+    if rate == 0:
+        rate = await _known_rate(item)
+    entry = Entry(date=payload.date, month=month_of(payload.date), item=item, pcs=payload.pcs, rate=rate)
     await db.entries.insert_one(entry.model_dump())
+    await _remember_rate(item, rate)
     return entry
 
 
@@ -251,7 +283,20 @@ async def update_entry(entry_id: str, payload: EntryUpdate):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Entry not found")
     entry = await db.entries.find_one({"id": entry_id}, {"_id": 0})
-    return entry
+
+    auto_applied = 0
+    if "rate" in update and update["rate"] is not None and float(update["rate"]) > 0 and entry:
+        rate = float(update["rate"])
+        item = entry["item"]
+        await _remember_rate(item, rate)
+        # Auto-apply to other zero-rate entries of same item (across all months)
+        r = await db.entries.update_many(
+            {"item": item, "rate": {"$in": [0, 0.0, None]}, "id": {"$ne": entry_id}},
+            {"$set": {"rate": rate}},
+        )
+        auto_applied = r.modified_count
+
+    return {"entry": entry, "auto_applied": auto_applied}
 
 
 @api_router.delete("/entries/{entry_id}")
@@ -269,7 +314,28 @@ async def bulk_rate(payload: BulkRateUpdate):
         {"item": payload.item, "month": payload.month},
         {"$set": {"rate": payload.rate}},
     )
+    await _remember_rate(payload.item, payload.rate)
     return {"updated": result.modified_count}
+
+
+@api_router.post("/entries/rates/bulk-apply")
+async def bulk_rates_apply(payload: BulkRatesMap):
+    """Apply many item->rate mappings at once. If month set, restricts to that month; else applies globally."""
+    total_updated = 0
+    items_touched = 0
+    for item, rate in (payload.rates or {}).items():
+        try:
+            r = float(rate)
+        except Exception:
+            continue
+        q = {"item": item}
+        if payload.month:
+            q["month"] = payload.month
+        result = await db.entries.update_many(q, {"$set": {"rate": r}})
+        total_updated += result.modified_count
+        items_touched += 1
+        await _remember_rate(item, r)
+    return {"updated": total_updated, "items": items_touched}
 
 
 @api_router.get("/summary")

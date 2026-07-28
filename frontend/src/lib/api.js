@@ -9,9 +9,11 @@ export const fetchMonths = () => api.get("/months").then((r) => r.data.months);
 export const fetchEntries = (month) => api.get(`/entries`, { params: { month } }).then((r) => r.data.entries);
 export const fetchSummary = (month) => api.get(`/summary`, { params: { month } }).then((r) => r.data);
 export const patchEntry = (id, payload) => api.patch(`/entries/${id}`, payload).then((r) => r.data);
+export const fetchItemRates = () => api.get(`/item-rates`).then((r) => r.data.rates || {});
 export const deleteEntry = (id) => api.delete(`/entries/${id}`).then((r) => r.data);
 export const createEntry = (payload) => api.post(`/entries`, payload).then((r) => r.data);
 export const bulkRate = (payload) => api.post(`/entries/bulk-rate`, payload).then((r) => r.data);
+export const bulkRatesApply = (payload) => api.post(`/entries/rates/bulk-apply`, payload).then((r) => r.data);
 export const uploadPdf = (file) => {
   const fd = new FormData();
   fd.append("file", file);

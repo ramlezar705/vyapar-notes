@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { CaretDown, CaretRight, Trash, Plus, Lightning } from "@phosphor-icons/react";
-import { formatINR, formatNumber, patchEntry, deleteEntry, createEntry, bulkRate } from "@/lib/api";
+import { CaretDown, CaretRight, Trash, Plus } from "@phosphor-icons/react";
+import { formatINR, formatNumber, patchEntry, deleteEntry, createEntry } from "@/lib/api";
 import { toast } from "sonner";
-
+import { RatesManager } from "@/components/RatesManager";
 const RateInput = ({ value, onCommit, testid }) => {
   const [v, setV] = useState(value ?? 0);
   return (
@@ -29,10 +28,9 @@ const RateInput = ({ value, onCommit, testid }) => {
   );
 };
 
-export const EntriesTable = ({ entries, month, onChange }) => {
+export const EntriesTable = ({ entries, month, itemRates = {}, summaryItems = [], onChange }) => {
   const [openDates, setOpenDates] = useState({});
   const [newEntry, setNewEntry] = useState({}); // per-date draft
-  const [bulk, setBulk] = useState({ item: "", rate: "" });
 
   const grouped = useMemo(() => {
     const g = {};
@@ -42,16 +40,15 @@ export const EntriesTable = ({ entries, month, onChange }) => {
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b));
   }, [entries]);
 
-  const itemNames = useMemo(() => {
-    const s = new Set();
-    entries.forEach((e) => s.add(e.item));
-    return Array.from(s).sort();
-  }, [entries]);
-
   const updateRate = async (id, rate) => {
     try {
-      await patchEntry(id, { rate });
-      toast.success("Rate updated");
+      const res = await patchEntry(id, { rate });
+      const applied = res?.auto_applied || 0;
+      if (applied > 0) {
+        toast.success(`Rate updated. Auto-applied to ${applied} other ${applied === 1 ? "entry" : "entries"} of same item`);
+      } else {
+        toast.success("Rate updated");
+      }
       onChange && onChange();
     } catch (e) {
       toast.error("Update failed");
@@ -84,21 +81,6 @@ export const EntriesTable = ({ entries, month, onChange }) => {
     }
   };
 
-  const applyBulk = async () => {
-    if (!bulk.item || bulk.rate === "") {
-      toast.error("Pick an item and rate");
-      return;
-    }
-    try {
-      const r = await bulkRate({ item: bulk.item, rate: parseFloat(bulk.rate), month });
-      toast.success(`Applied rate to ${r.updated} entries of ${bulk.item}`);
-      setBulk({ item: "", rate: "" });
-      onChange && onChange();
-    } catch (e) {
-      toast.error("Bulk update failed");
-    }
-  };
-
   return (
     <Card className="p-0 overflow-hidden border border-black/5 shadow-sm bg-white" data-testid="entries-table">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-neutral-100">
@@ -107,32 +89,7 @@ export const EntriesTable = ({ entries, month, onChange }) => {
           <p className="text-xs text-neutral-500 mt-0.5">Add rate for each row to calculate daily and monthly totals.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            data-testid="bulk-item-select"
-            value={bulk.item}
-            onChange={(e) => setBulk({ ...bulk, item: e.target.value })}
-            className="h-9 rounded-md border border-neutral-300 text-sm px-2 bg-white"
-          >
-            <option value="">Bulk apply rate to item…</option>
-            {itemNames.map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <Input
-            type="number"
-            placeholder="Rate"
-            value={bulk.rate}
-            data-testid="bulk-rate-input"
-            onChange={(e) => setBulk({ ...bulk, rate: e.target.value })}
-            className="h-9 w-24 text-right font-mono-num"
-          />
-          <Button
-            onClick={applyBulk}
-            data-testid="bulk-apply-btn"
-            className="h-9 bg-amber-500 hover:bg-amber-600 text-white rounded-full px-4"
-          >
-            <Lightning size={14} weight="fill" className="mr-1" />Apply
-          </Button>
+          <RatesManager items={summaryItems} itemRates={itemRates} month={month} onChange={onChange} />
         </div>
       </div>
 
@@ -206,11 +163,28 @@ export const EntriesTable = ({ entries, month, onChange }) => {
                         <td className="py-2 pr-2">
                           <Input
                             placeholder="Item name"
+                            list={`itemlist-${date}`}
                             value={newEntry[date]?.item || ""}
                             data-testid={`new-item-${date}`}
-                            onChange={(e) => setNewEntry({ ...newEntry, [date]: { ...(newEntry[date] || {}), item: e.target.value } })}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const known = itemRates[val.trim()];
+                              setNewEntry({
+                                ...newEntry,
+                                [date]: {
+                                  ...(newEntry[date] || {}),
+                                  item: val,
+                                  rate: newEntry[date]?.rate || (known ? String(known) : ""),
+                                },
+                              });
+                            }}
                             className="h-8"
                           />
+                          <datalist id={`itemlist-${date}`}>
+                            {Object.keys(itemRates).map((n) => (
+                              <option key={n} value={n} />
+                            ))}
+                          </datalist>
                         </td>
                         <td className="py-2 text-right">
                           <Input

@@ -6,6 +6,7 @@ import { EntriesTable } from "@/components/EntriesTable";
 import { ItemSummaryTable } from "@/components/ItemSummaryTable";
 import { DailyTrendChart } from "@/components/DailyTrendChart";
 import { TopItemsChart } from "@/components/TopItemsChart";
+import { KeywordSearch } from "@/components/KeywordSearch";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -20,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { fetchMonths, fetchEntries, fetchSummary, formatINR, formatNumber, monthLabel, deleteMonth } from "@/lib/api";
+import { fetchMonths, fetchEntries, fetchSummary, fetchItemRates, formatINR, formatNumber, monthLabel, deleteMonth } from "@/lib/api";
 import { toast } from "sonner";
 
 const currentMonthKey = () => {
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [month, setMonth] = useState(null);
   const [entries, setEntries] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [itemRates, setItemRates] = useState({});
   const [loading, setLoading] = useState(false);
 
   const refreshMonths = useCallback(async () => {
@@ -49,9 +51,10 @@ export default function Dashboard() {
     }
     setLoading(true);
     try {
-      const [es, sm] = await Promise.all([fetchEntries(targetMonth), fetchSummary(targetMonth)]);
+      const [es, sm, rates] = await Promise.all([fetchEntries(targetMonth), fetchSummary(targetMonth), fetchItemRates()]);
       setEntries(es);
       setSummary(sm);
+      setItemRates(rates);
     } catch (e) {
       toast.error("Failed to load data");
     } finally {
@@ -238,7 +241,10 @@ export default function Dashboard() {
             </div>
 
             {/* Entries table */}
-            <EntriesTable entries={entries} month={month} onChange={onDataChange} />
+            <EntriesTable entries={entries} month={month} itemRates={itemRates} summaryItems={items} onChange={onDataChange} />
+
+            {/* Keyword search */}
+            <KeywordSearch items={items} />
 
             {/* Item summary */}
             <ItemSummaryTable items={items} />
