@@ -14,7 +14,6 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
 from google import genai as google_genai
 from google.genai import types as google_genai_types
 
@@ -27,7 +26,6 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
 
 app = FastAPI()
@@ -104,22 +102,30 @@ Rules:
 
 
 async def parse_pdf_with_gemini(pdf_path: str) -> dict:
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"pdf-parse-{uuid.uuid4()}",
-        system_message="You are a precise data extraction assistant. Always return only valid JSON matching the requested schema.",
-    ).with_model("gemini", "gemini-2.5-flash")
+    """Parse PDF using Google Gemini (free tier, user-provided GEMINI_API_KEY)."""
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not set. Get a free key from https://aistudio.google.com/apikey")
 
-    pdf_file = FileContentWithMimeType(file_path=pdf_path, mime_type="application/pdf")
-    msg = UserMessage(text=PARSE_PROMPT, file_contents=[pdf_file])
-    response_text = await chat.send_message(msg)
+    import asyncio
+    def _run_sync() -> str:
+        gclient = google_genai.Client(api_key=GEMINI_API_KEY)
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        resp = gclient.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                google_genai_types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                PARSE_PROMPT,
+            ],
+        )
+        return resp.text or ""
+    response_text = await asyncio.to_thread(_run_sync)
 
     # Strip potential code fences
     cleaned = response_text.strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
-    # Try to grab JSON block if extra prose
     m = re.search(r"\{[\s\S]*\}", cleaned)
     if m:
         cleaned = m.group(0)
