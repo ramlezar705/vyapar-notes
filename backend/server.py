@@ -427,6 +427,26 @@ app.add_middleware(
 )
 
 
+# ------ Serve React frontend as static files (single-service deployment) ------
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+STATIC_DIR = ROOT_DIR / "static"
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve React build; on any 404 for a route path (no dot), fall back to index.html for SPA routing."""
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 404 and "." not in path.split("/")[-1]:
+            return FileResponse(STATIC_DIR / "index.html")
+        return response
+
+
+if STATIC_DIR.exists() and (STATIC_DIR / "index.html").exists():
+    app.mount("/", SPAStaticFiles(directory=str(STATIC_DIR), html=True), name="spa")
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
