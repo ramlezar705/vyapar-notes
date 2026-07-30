@@ -29,6 +29,28 @@ const currentMonthKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+// Category = last word of item name, lowercased. "Best aand" → "aand", "Forlix" → "forlix".
+const categoryOf = (name) => {
+  const parts = String(name || "").trim().split(/\s+/);
+  return (parts[parts.length - 1] || "").toLowerCase();
+};
+
+// Aggregate summary.items into categories: [{item: 'aand', pcs, revenue, entries, count}]
+const aggregateByCategory = (items) => {
+  const map = {};
+  for (const it of items || []) {
+    const cat = categoryOf(it.item);
+    if (!cat) continue;
+    const g = map[cat] || { item: cat, pcs: 0, revenue: 0, entries: 0, count: 0 };
+    g.pcs += it.pcs || 0;
+    g.revenue += it.revenue || 0;
+    g.entries += it.entries || 0;
+    g.count += 1;
+    map[cat] = g;
+  }
+  return Object.values(map).sort((a, b) => b.pcs - a.pcs);
+};
+
 export default function Dashboard() {
   const [months, setMonths] = useState([]);
   const [month, setMonth] = useState(null);
@@ -130,6 +152,7 @@ export default function Dashboard() {
 
   const revenueByDay = summary?.daily || [];
   const items = summary?.items || [];
+  const categories = useMemo(() => aggregateByCategory(items), [items]);
 
   return (
     <div className="min-h-screen paper-bg">
@@ -294,9 +317,9 @@ export default function Dashboard() {
                 testid="kpi-days"
               />
               <KpiCard
-                label="Top Item (Pcs)"
-                value={summary.top_item_by_pcs || "—"}
-                sub={summary.top_item_by_revenue && summary.top_item_by_revenue !== summary.top_item_by_pcs ? `By revenue: ${summary.top_item_by_revenue}` : "Leading item"}
+                label="Top Category (Pcs)"
+                value={categories[0]?.item || "—"}
+                sub={categories[0] ? `${formatNumber(categories[0].pcs)} pcs · ${categories[0].count} items` : "Leading category"}
                 icon={Trophy}
                 tone="trophy"
                 delay={180}
@@ -320,8 +343,8 @@ export default function Dashboard() {
               <Card className="p-4 sm:p-5 border-0 ring-1 ring-neutral-200 shadow-[0_1px_2px_rgba(31,25,23,0.04),0_10px_30px_-16px_rgba(31,25,23,0.15)] bg-white" data-testid="top-items-card">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-display font-semibold text-xl text-neutral-900">Top Items</h3>
-                    <p className="text-xs text-neutral-500">Best performers this month</p>
+                    <h3 className="font-display font-semibold text-xl text-neutral-900">Top Categories</h3>
+                    <p className="text-xs text-neutral-500">Grouped by last word — aand, aj, banz, silica, forlix…</p>
                   </div>
                   <ChartBar size={22} weight="duotone" className="text-neutral-400" />
                 </div>
@@ -331,10 +354,10 @@ export default function Dashboard() {
                     <TabsTrigger value="revenue" data-testid="tab-top-revenue">By Revenue</TabsTrigger>
                   </TabsList>
                   <TabsContent value="pcs">
-                    <TopItemsChart data={items} metric="pcs" />
+                    <TopItemsChart data={categories} metric="pcs" />
                   </TabsContent>
                   <TabsContent value="revenue">
-                    <TopItemsChart data={[...items].sort((a, b) => b.revenue - a.revenue)} metric="revenue" />
+                    <TopItemsChart data={[...categories].sort((a, b) => b.revenue - a.revenue)} metric="revenue" />
                   </TabsContent>
                 </Tabs>
               </Card>
