@@ -21,9 +21,14 @@ from google.genai import types as google_genai_types
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+# MongoDB connection. For Atlas (mongodb+srv://) attach certifi CA bundle to avoid
+# TLS handshake issues on some hosts. For plain local mongodb:// leave defaults.
+import certifi
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+_mongo_kwargs = {}
+if mongo_url.startswith("mongodb+srv://") or "tls=true" in mongo_url.lower():
+    _mongo_kwargs["tlsCAFile"] = certifi.where()
+client = AsyncIOMotorClient(mongo_url, **_mongo_kwargs)
 db = client[os.environ['DB_NAME']]
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
