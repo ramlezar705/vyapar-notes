@@ -15,6 +15,8 @@ import uuid
 from datetime import datetime, timezone
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
+from google import genai as google_genai
+from google.genai import types as google_genai_types
 
 
 ROOT_DIR = Path(__file__).parent
@@ -26,6 +28,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
