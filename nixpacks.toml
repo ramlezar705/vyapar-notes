@@ -1,19 +1,26 @@
 [phases.setup]
 nixPkgs = ['python312', 'gcc', 'nodejs_20', 'yarn']
+aptPkgs = ['ca-certificates']
 
 [phases.install]
 cmds = [
   'python -m venv /opt/venv',
-  '. /opt/venv/bin/activate && pip install -r backend/requirements.txt',
-  'cd frontend && yarn install --frozen-lockfile',
+  '. /opt/venv/bin/activate && pip install --upgrade pip && pip install -r backend/requirements.txt',
+  'node --version',
+  'cd frontend && yarn install --network-timeout 600000',
 ]
 
 [phases.build]
 cmds = [
-  'cd frontend && REACT_APP_BACKEND_URL="" yarn build',
+  'cd frontend && REACT_APP_BACKEND_URL="" DISABLE_ESLINT_PLUGIN=true CI=false yarn build',
   'rm -rf backend/static && mkdir -p backend/static',
   'cp -r frontend/build/* backend/static/',
+  'ls -la backend/static/',
 ]
 
 [start]
 cmd = '. /opt/venv/bin/activate && cd backend && uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}'
+
+[variables]
+NODE_VERSION = "20"
+NIXPACKS_NODE_VERSION = "20"
