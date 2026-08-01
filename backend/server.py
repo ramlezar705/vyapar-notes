@@ -113,17 +113,14 @@ async def parse_pdf_with_gemini(pdf_path: str) -> dict:
 
     import asyncio
     def _run_sync() -> str:
-        gclient = google_genai.Client(api_key=GEMINI_API_KEY)
-        with open(pdf_path, "rb") as f:
-            pdf_bytes = f.read()
-        resp = gclient.models.generate_content(
-           model="gemini-2.5-flash-lite",
-            contents=[
-                google_genai_types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                PARSE_PROMPT,
-            ],
-        )
-        return resp.text or ""
+    gclient = google_genai.Client(api_key=GEMINI_API_KEY)
+
+    models = list(gclient.models.list())
+
+    for m in models:
+        logger.info(f"AVAILABLE MODEL: {m.name}")
+
+    raise Exception("Check Render Logs for AVAILABLE MODEL list")
     response_text = await asyncio.to_thread(_run_sync)
 
     # Strip potential code fences
