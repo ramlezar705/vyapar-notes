@@ -17,8 +17,6 @@ from datetime import datetime, timezone
 from google import genai as google_genai
 from google.genai import types as google_genai_types
 
-for model in gclient.models.list():
-    print(model.name)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
