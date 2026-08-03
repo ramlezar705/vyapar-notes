@@ -119,7 +119,7 @@ async def parse_pdf_with_gemini(pdf_path: str) -> dict:
         pdf_bytes = f.read()
 
     resp = gclient.models.generate_content(
-        model="gemini-2.5-flash-lite",
+       model="gemini-2.5-flash"
         contents=[
             google_genai_types.Part.from_bytes(
                 data=pdf_bytes,
