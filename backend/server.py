@@ -108,41 +108,48 @@ Rules:
 
 async def parse_pdf_with_gemini(pdf_path: str) -> dict:
     """Parse PDF using Google Gemini (free tier, user-provided GEMINI_API_KEY)."""
+   async def parse_pdf_with_gemini(pdf_path: str) -> dict:
+    """Parse PDF using Google Gemini (free tier, user-provided GEMINI_API_KEY)."""
     if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not set. Get a free key from https://aistudio.google.com/apikey")
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. Get a free key from https://aistudio.google.com/apikey"
+        )
 
     import asyncio
+
     def _run_sync() -> str:
-    gclient = google_genai.Client(api_key=GEMINI_API_KEY)
+        gclient = google_genai.Client(api_key=GEMINI_API_KEY)
 
-    with open(pdf_path, "rb") as f:
-        pdf_bytes = f.read()
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
 
-    resp = gclient.models.generate_content(
-       model="gemini-2.5-flash"
-        contents=[
-            google_genai_types.Part.from_bytes(
-                data=pdf_bytes,
-                mime_type="application/pdf"
-            ),
-            PARSE_PROMPT,
-        ],
-    )
-    return resp.text or ""
+        resp = gclient.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                google_genai_types.Part.from_bytes(
+                    data=pdf_bytes,
+                    mime_type="application/pdf",
+                ),
+                PARSE_PROMPT,
+            ],
+        )
+
+        return resp.text or ""
+
     response_text = await asyncio.to_thread(_run_sync)
 
     # Strip potential code fences
     cleaned = response_text.strip()
+
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
+
     m = re.search(r"\{[\s\S]*\}", cleaned)
     if m:
         cleaned = m.group(0)
-    data = json.loads(cleaned)
-    return data
 
-
+    return json.loads(cleaned)
 # ---------- Routes ----------
 @api_router.get("/")
 async def root():
